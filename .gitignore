@@ -1,0 +1,33 @@
+# =====================================================================
+# Smart Inventory & Billing Management System — Root .gitignore
+# =====================================================================
+
+# Maven build outputs
+**/target/
+**/*.jar
+**/*.war
+
+# Node / Frontend
+**/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Environment variables
+**/.env
+**/*.env
+
+# Temp scripts
+frontend/create-pages.ps1
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.suo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+**/*.log
