@@ -2,32 +2,45 @@
 # Smart Inventory & Billing Management System — Root .gitignore
 # =====================================================================
 
-# Maven build outputs
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Maven & Java build outputs
+target/
 **/target/
 **/*.jar
 **/*.war
 
-# Node / Frontend
-**/node_modules/
+# Frontend production builds
+dist/
+**/dist/
 frontend/dist/
 frontend/.vite/
 
-# Environment variables
+# Environment files & secrets (never commit real credentials)
+.env
+.env.*
 **/.env
-**/*.env
+**/.env.*
 
-# Temp scripts
-frontend/create-pages.ps1
+# Explicitly track example environment templates
+!.env.example
+!**/.env.example
+!.env.production.example
+!**/.env.production.example
 
-# IDE
+# Logs
+logs/
+**/logs/
+**/*.log
+
+# IDE & Editor settings
 .idea/
 *.iml
 .vscode/
 *.suo
 
-# OS
+# Operating System
 .DS_Store
 Thumbs.db
-
-# Logs
-**/*.log

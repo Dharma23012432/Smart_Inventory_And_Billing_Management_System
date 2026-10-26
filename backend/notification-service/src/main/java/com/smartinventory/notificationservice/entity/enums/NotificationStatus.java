@@ -9,5 +9,7 @@ public enum NotificationStatus {
     PENDING,
     APPROVED,
     SENT,
-    FAILED
+    FAILED,
+    SKIPPED,
+    CANCELLED
 }

@@ -23,7 +23,11 @@ public class PurchaseResponseDTO {
 
     private Long id;
 
+    private String purchaseNumber;
+
     private SupplierSummaryDTO supplier;
+
+    private String supplierEmail;
 
     private LocalDate purchaseDate;
 

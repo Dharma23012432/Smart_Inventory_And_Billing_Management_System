@@ -46,4 +46,11 @@ public interface NotificationService {
      * @return NotificationResponseDTO
      */
     NotificationResponseDTO retryNotification(Long id);
+
+    /**
+     * Returns the count of actionable items (Pending Low Stock approvals + Failed emails).
+     *
+     * @return count of actionable notifications
+     */
+    long getActionableCount();
 }

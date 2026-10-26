@@ -1,0 +1,13 @@
+**/.git
+**/.idea
+**/.vscode
+**/target
+**/*.class
+**/*.iml
+**/*.log
+**/logs
+**/.DS_Store
+**/Thumbs.db
+frontend/node_modules
+frontend/dist
+.gemini/

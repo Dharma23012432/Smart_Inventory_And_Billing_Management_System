@@ -39,12 +39,12 @@ public class RabbitEventPublisher implements EventPublisher {
     public void publishPaymentCompleted(PaymentCompletedEvent event) {
         try {
             log.info("Publishing PaymentCompletedEvent to exchange: '{}' with routing key: '{}' for paymentId: {}",
-                    exchange, paymentCompletedRoutingKey, event.getPayload().getPaymentId());
+                    exchange, paymentCompletedRoutingKey, event.getPaymentId());
             rabbitTemplate.convertAndSend(exchange, paymentCompletedRoutingKey, event);
-            log.info("Successfully published PaymentCompletedEvent: {}", event.getEventId());
+            log.info("Successfully published PaymentCompletedEvent for paymentId: {}", event.getPaymentId());
         } catch (Exception ex) {
             log.error("Failed to publish PaymentCompletedEvent for paymentId: {}. Error: {}",
-                    event.getPayload().getPaymentId(), ex.getMessage(), ex);
+                    event.getPaymentId(), ex.getMessage(), ex);
             // Non-blocking: We don't rollback the payment transaction if the message broker is temporarily down
         }
     }

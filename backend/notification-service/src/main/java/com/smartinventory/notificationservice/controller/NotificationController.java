@@ -103,4 +103,16 @@ public class NotificationController {
         NotificationResponseDTO result = notificationService.retryNotification(id);
         return ResponseEntity.ok(ApiResponse.success(result, "Notification retry attempted"));
     }
+
+    /**
+     * Get Actionable Notification Count (Badge Metric)
+     * GET /api/v1/notifications/actionable-count
+     *
+     * @return ApiResponse containing count of actionable notifications
+     */
+    @GetMapping("/actionable-count")
+    public ResponseEntity<ApiResponse<Long>> getActionableCount() {
+        long count = notificationService.getActionableCount();
+        return ResponseEntity.ok(ApiResponse.success(count, "Actionable notification count retrieved"));
+    }
 }

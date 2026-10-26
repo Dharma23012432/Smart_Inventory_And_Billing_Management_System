@@ -4,6 +4,8 @@ import com.smartinventory.inventoryservice.dto.*;
 import com.smartinventory.inventoryservice.entity.*;
 import com.smartinventory.inventoryservice.entity.enums.BillStatus;
 import com.smartinventory.inventoryservice.entity.enums.CustomerStatus;
+import com.smartinventory.inventoryservice.event.BillCancelledEvent;
+import com.smartinventory.inventoryservice.event.BillConfirmedEvent;
 import com.smartinventory.inventoryservice.event.EventPublisher;
 import com.smartinventory.inventoryservice.event.LowStockEvent;
 import com.smartinventory.inventoryservice.event.LowStockPayload;
@@ -285,6 +287,19 @@ public class BillServiceImpl implements BillService {
         Bill confirmedBill = billRepository.save(bill);
         log.info("Bill ID: {} ({}) successfully CONFIRMED", confirmedBill.getId(), confirmedBill.getBillNumber());
 
+        // 4. Publish BillConfirmedEvent to message broker (only reaches here if confirmation and saves succeeded)
+        BillConfirmedEvent billConfirmedEvent = BillConfirmedEvent.builder()
+                .billId(confirmedBill.getId())
+                .billNumber(confirmedBill.getBillNumber())
+                .customerId(confirmedBill.getCustomer().getId())
+                .customerName(confirmedBill.getCustomer().getName())
+                .customerEmail(confirmedBill.getCustomer().getEmail())
+                .totalAmount(confirmedBill.getTotalAmount())
+                .billDate(confirmedBill.getBillDate())
+                .eventTimestamp(Instant.now())
+                .build();
+        eventPublisher.publishBillConfirmedEvent(billConfirmedEvent);
+
         return BillConfirmResponseDTO.builder()
                 .id(confirmedBill.getId())
                 .billNumber(confirmedBill.getBillNumber())
@@ -329,6 +344,14 @@ public class BillServiceImpl implements BillService {
         bill.setStatus(BillStatus.CANCELLED);
         Bill cancelledBill = billRepository.save(bill);
         log.info("Bill ID: {} ({}) marked as CANCELLED", cancelledBill.getId(), cancelledBill.getBillNumber());
+
+        BillCancelledEvent billCancelledEvent = BillCancelledEvent.builder()
+                .billId(cancelledBill.getId())
+                .billNumber(cancelledBill.getBillNumber())
+                .reason("Invoice Cancelled")
+                .eventTimestamp(Instant.now())
+                .build();
+        eventPublisher.publishBillCancelledEvent(billCancelledEvent);
 
         return billMapper.toResponseDTO(cancelledBill);
     }

@@ -31,11 +31,14 @@ public class PurchaseMapper {
         }
 
         SupplierSummaryDTO supplierSummary = null;
+        String supplierEmail = null;
         if (purchase.getSupplier() != null) {
             Supplier s = purchase.getSupplier();
+            supplierEmail = s.getEmail();
             supplierSummary = SupplierSummaryDTO.builder()
                     .id(s.getId())
                     .name(s.getName())
+                    .email(s.getEmail())
                     .build();
         }
 
@@ -46,9 +49,13 @@ public class PurchaseMapper {
                     .collect(Collectors.toList());
         }
 
+        String purchaseNumber = purchase.getId() != null ? String.format("PO-%05d", purchase.getId()) : null;
+
         return PurchaseResponseDTO.builder()
                 .id(purchase.getId())
+                .purchaseNumber(purchaseNumber)
                 .supplier(supplierSummary)
+                .supplierEmail(supplierEmail)
                 .purchaseDate(purchase.getPurchaseDate())
                 .totalAmount(purchase.getTotalAmount())
                 .status(purchase.getStatus())

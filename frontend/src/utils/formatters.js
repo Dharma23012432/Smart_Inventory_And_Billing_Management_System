@@ -1,46 +1,58 @@
 /**
  * formatters.js
  *
- * Utility functions for formatting values in the UI.
- * Implementations will be expanded in Phase 5 (Frontend).
+ * Formatting utilities for numbers, currencies, and dates.
  */
 
-/**
- * Formats a number as Indian Rupee currency.
- * @param {number} amount
- * @returns {string}
- */
 export function formatCurrency(amount) {
+  if (amount === null || amount === undefined || isNaN(amount)) {
+    return '₹0.00'
+  }
+  const numeric = typeof amount === 'number' ? amount : parseFloat(amount)
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
-  }).format(amount)
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(numeric)
 }
 
-/**
- * Formats an ISO date string into a readable date.
- * @param {string} isoDate
- * @returns {string}
- */
+export function formatNumber(num) {
+  if (num === null || num === undefined || isNaN(num)) {
+    return '0'
+  }
+  const numeric = typeof num === 'number' ? num : parseFloat(num)
+  return new Intl.NumberFormat('en-IN').format(numeric)
+}
+
 export function formatDate(isoDate) {
-  return new Intl.DateTimeFormat('en-IN', {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
-  }).format(new Date(isoDate))
+  if (!isoDate) return '—'
+  try {
+    const d = new Date(isoDate)
+    if (isNaN(d.getTime())) return isoDate
+    return new Intl.DateTimeFormat('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+    }).format(d)
+  } catch {
+    return isoDate
+  }
 }
 
-/**
- * Formats an ISO date string into a readable date-time.
- * @param {string} isoDate
- * @returns {string}
- */
 export function formatDateTime(isoDate) {
-  return new Intl.DateTimeFormat('en-IN', {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(isoDate))
+  if (!isoDate) return '—'
+  try {
+    const d = new Date(isoDate)
+    if (isNaN(d.getTime())) return isoDate
+    return new Intl.DateTimeFormat('en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(d)
+  } catch {
+    return isoDate
+  }
 }

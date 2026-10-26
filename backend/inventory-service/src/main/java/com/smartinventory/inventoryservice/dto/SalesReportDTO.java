@@ -31,5 +31,13 @@ public class SalesReportDTO {
 
     private BigDecimal netSales;
 
+    private Long totalBills;
+
+    private BigDecimal averageBillValue;
+
     private List<SalesBreakdownDTO> breakdown;
+
+    public List<SalesBreakdownDTO> getDataPoints() {
+        return breakdown;
+    }
 }

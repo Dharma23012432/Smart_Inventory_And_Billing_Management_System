@@ -43,6 +43,12 @@ class NotificationServiceTest {
     @Mock
     private EmailService emailService;
 
+    @Mock
+    private com.smartinventory.notificationservice.repository.BillRepository billRepository;
+
+    @Mock
+    private com.smartinventory.notificationservice.repository.ProductRepository productRepository;
+
     @Spy
     private NotificationMapper notificationMapper;
 

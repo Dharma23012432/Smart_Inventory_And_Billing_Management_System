@@ -29,13 +29,22 @@ public class PurchaseReportDTO {
 
     private List<PurchaseBreakdownDTO> breakdown;
 
+    public BigDecimal getTotalExpense() {
+        return totalPurchases;
+    }
+
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class PurchaseBreakdownDTO {
         private String period;
+        private String supplierName;
         private Long orderCount;
         private BigDecimal totalAmount;
+
+        public BigDecimal getTotalExpense() {
+            return totalAmount;
+        }
     }
 }

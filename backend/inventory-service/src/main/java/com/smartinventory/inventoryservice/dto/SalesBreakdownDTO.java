@@ -21,4 +21,8 @@ public class SalesBreakdownDTO {
     private Long billCount;
 
     private BigDecimal totalAmount;
+
+    public BigDecimal getRevenue() {
+        return totalAmount;
+    }
 }

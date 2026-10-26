@@ -7,7 +7,11 @@ import com.smartinventory.notificationservice.entity.Notification;
 import com.smartinventory.notificationservice.entity.enums.NotificationStatus;
 import com.smartinventory.notificationservice.entity.enums.NotificationType;
 import com.smartinventory.notificationservice.exception.ResourceNotFoundException;
+import com.smartinventory.notificationservice.entity.Bill;
+import com.smartinventory.notificationservice.entity.Product;
+import com.smartinventory.notificationservice.repository.BillRepository;
 import com.smartinventory.notificationservice.repository.NotificationRepository;
+import com.smartinventory.notificationservice.repository.ProductRepository;
 import com.smartinventory.notificationservice.service.EmailService;
 import com.smartinventory.notificationservice.service.NotificationService;
 import com.smartinventory.notificationservice.service.mapper.NotificationMapper;
@@ -20,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -33,13 +38,19 @@ public class NotificationServiceImpl implements NotificationService {
     private final NotificationRepository notificationRepository;
     private final NotificationMapper notificationMapper;
     private final EmailService emailService;
+    private final BillRepository billRepository;
+    private final ProductRepository productRepository;
 
     public NotificationServiceImpl(NotificationRepository notificationRepository,
                                    NotificationMapper notificationMapper,
-                                   EmailService emailService) {
+                                   EmailService emailService,
+                                   BillRepository billRepository,
+                                   ProductRepository productRepository) {
         this.notificationRepository = notificationRepository;
         this.notificationMapper = notificationMapper;
         this.emailService = emailService;
+        this.billRepository = billRepository;
+        this.productRepository = productRepository;
     }
 
     @Override
@@ -59,7 +70,7 @@ public class NotificationServiceImpl implements NotificationService {
         }
 
         List<NotificationResponseDTO> content = page.getContent().stream()
-                .map(notificationMapper::toDTO)
+                .map(this::toDTOWithResolvedEmail)
                 .collect(Collectors.toList());
 
         return new PageResponse<>(
@@ -78,7 +89,56 @@ public class NotificationServiceImpl implements NotificationService {
         log.debug("Fetching notification by ID: {}", id);
         Notification notification = notificationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Notification not found with ID: " + id));
-        return notificationMapper.toDTO(notification);
+        return toDTOWithResolvedEmail(notification);
+    }
+
+    private NotificationResponseDTO toDTOWithResolvedEmail(Notification entity) {
+        NotificationResponseDTO dto = notificationMapper.toDTO(entity);
+        if (dto != null) {
+            String resolvedEmail = resolveRecipientEmail(entity);
+            if (resolvedEmail != null && !resolvedEmail.trim().isEmpty()) {
+                dto.setRecipientEmail(resolvedEmail);
+            }
+        }
+        return dto;
+    }
+
+    private String resolveRecipientEmail(Notification notification) {
+        if (notification == null) {
+            return null;
+        }
+
+        // 1. If the notification references a Bill, retrieve the email from the Bill's Customer
+        if ("BILL".equalsIgnoreCase(notification.getReferenceType()) && notification.getReferenceId() != null && billRepository != null) {
+            try {
+                Optional<Bill> billOpt = billRepository.findById(notification.getReferenceId());
+                if (billOpt.isPresent() && billOpt.get().getCustomer() != null) {
+                    String customerEmail = billOpt.get().getCustomer().getEmail();
+                    if (customerEmail != null && !customerEmail.trim().isEmpty()) {
+                        return customerEmail.trim();
+                    }
+                }
+            } catch (Exception ex) {
+                log.warn("Could not retrieve customer email for Bill ID: {}", notification.getReferenceId(), ex);
+            }
+        }
+
+        // 2. If the notification references a Supplier alert, retrieve the Supplier email
+        if ("PRODUCT".equalsIgnoreCase(notification.getReferenceType()) && notification.getReferenceId() != null && productRepository != null) {
+            try {
+                Optional<com.smartinventory.notificationservice.entity.Product> prodOpt = productRepository.findById(notification.getReferenceId());
+                if (prodOpt.isPresent() && prodOpt.get().getSupplier() != null) {
+                    String supplierEmail = prodOpt.get().getSupplier().getEmail();
+                    if (supplierEmail != null && !supplierEmail.trim().isEmpty()) {
+                        return supplierEmail.trim();
+                    }
+                }
+            } catch (Exception ex) {
+                log.warn("Could not retrieve supplier email for Product ID: {}", notification.getReferenceId(), ex);
+            }
+        }
+
+        return notification.getRecipientEmail();
     }
 
     @Override
@@ -98,6 +158,11 @@ public class NotificationServiceImpl implements NotificationService {
 
         // Sets status = APPROVED
         notification.setStatus(NotificationStatus.APPROVED);
+
+        String targetEmail = resolveRecipientEmail(notification);
+        if (targetEmail != null && !targetEmail.trim().isEmpty()) {
+            notification.setRecipientEmail(targetEmail);
+        }
 
         // Attempt dispatch via emailService
         try {
@@ -127,6 +192,11 @@ public class NotificationServiceImpl implements NotificationService {
             throw new IllegalStateException("Only notifications with FAILED status can be retried. Current status: " + notification.getStatus());
         }
 
+        String targetEmail = resolveRecipientEmail(notification);
+        if (targetEmail != null && !targetEmail.trim().isEmpty()) {
+            notification.setRecipientEmail(targetEmail);
+        }
+
         try {
             emailService.sendEmail(notification.getRecipientEmail(), notification.getSubject(), notification.getBody());
             notification.setStatus(NotificationStatus.SENT);
@@ -140,6 +210,12 @@ public class NotificationServiceImpl implements NotificationService {
         }
 
         Notification saved = notificationRepository.save(notification);
-        return notificationMapper.toDTO(saved);
+        return toDTOWithResolvedEmail(saved);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long getActionableCount() {
+        return notificationRepository.countActionableNotifications();
     }
 }

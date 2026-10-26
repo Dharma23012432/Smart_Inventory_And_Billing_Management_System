@@ -1,0 +1,221 @@
+services:
+
+  # =====================================================================
+  # PostgreSQL Database Service
+  # =====================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: smart-inventory-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-smart_inventory}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-smart_inventory}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - smart-inventory-network
+
+  # =====================================================================
+  # RabbitMQ Message Broker (with Management Console)
+  # =====================================================================
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: smart-inventory-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MGMT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - smart-inventory-network
+
+  # =====================================================================
+  # Inventory Service (Port 8080)
+  # =====================================================================
+  inventory-service:
+    build:
+      context: ./backend/inventory-service
+      dockerfile: Dockerfile
+    image: smart-inventory/inventory-service:latest
+    container_name: smart-inventory-service
+    restart: unless-stopped
+    ports:
+      - "${INVENTORY_SERVICE_PORT:-8080}:8080"
+    environment:
+      SERVER_PORT: 8080
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-smart_inventory}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_DEFAULT_USER:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS:-guest}
+      APP_RABBITMQ_EXCHANGE: inventory.exchange
+      APP_RABBITMQ_ROUTING_KEY_BILL_CONFIRMED: bill.confirmed
+      APP_RABBITMQ_ROUTING_KEY_LOW_STOCK: stock.low
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - smart-inventory-network
+
+  # =====================================================================
+  # Payment Service (Port 8081)
+  # =====================================================================
+  payment-service:
+    build:
+      context: ./backend/payment-service
+      dockerfile: Dockerfile
+    image: smart-inventory/payment-service:latest
+    container_name: smart-inventory-payment-service
+    restart: unless-stopped
+    ports:
+      - "${PAYMENT_SERVICE_PORT:-8081}:8081"
+    environment:
+      SERVER_PORT: 8081
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-smart_inventory}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_DEFAULT_USER:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS:-guest}
+      APP_RABBITMQ_EXCHANGE: inventory.exchange
+      APP_RABBITMQ_ROUTING_KEY_PAYMENT_COMPLETED: payment.completed
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - smart-inventory-network
+
+  # =====================================================================
+  # Notification Service (Port 8082)
+  # =====================================================================
+  notification-service:
+    build:
+      context: ./backend/notification-service
+      dockerfile: Dockerfile
+    image: smart-inventory/notification-service:latest
+    container_name: smart-inventory-notification-service
+    restart: unless-stopped
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-8082}:8082"
+    environment:
+      SERVER_PORT: 8082
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-smart_inventory}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_DEFAULT_USER:-guest}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_DEFAULT_PASS:-guest}
+      APP_RABBITMQ_EXCHANGE: inventory.exchange
+      APP_RABBITMQ_QUEUE_BILL_CONFIRMED: bill.confirmed.queue
+      APP_RABBITMQ_QUEUE_PAYMENT_COMPLETED: payment.completed.queue
+      APP_RABBITMQ_QUEUE_LOW_STOCK: stock.low.queue
+      APP_RABBITMQ_ROUTING_KEY_BILL_CONFIRMED: bill.confirmed
+      APP_RABBITMQ_ROUTING_KEY_PAYMENT_COMPLETED: payment.completed
+      APP_RABBITMQ_ROUTING_KEY_LOW_STOCK: stock.low
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-smtp.gmail.com}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD}
+      APP_MAIL_FROM: ${APP_MAIL_FROM:-${SPRING_MAIL_USERNAME}}
+      APP_CORS_ALLOWED_ORIGINS: ${APP_CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8082/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - smart-inventory-network
+
+  # =====================================================================
+  # Frontend Client (Port 3000)
+  # =====================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: smart-inventory/frontend:latest
+    container_name: smart-inventory-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      inventory-service:
+        condition: service_healthy
+      payment-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:80 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - smart-inventory-network
+
+# =====================================================================
+# Persistent Volumes
+# =====================================================================
+volumes:
+  postgres_data:
+    name: smart_inventory_postgres_data
+  rabbitmq_data:
+    name: smart_inventory_rabbitmq_data
+
+# =====================================================================
+# Isolated Bridge Network
+# =====================================================================
+networks:
+  smart-inventory-network:
+    name: smart_inventory_network
+    driver: bridge

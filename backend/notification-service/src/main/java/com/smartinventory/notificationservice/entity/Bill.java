@@ -20,6 +20,10 @@ public class Bill {
     @Column(name = "invoice_sent", nullable = false)
     private Boolean invoiceSent = false;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id")
+    private Customer customer;
+
     public Bill() {
     }
 
@@ -45,5 +49,13 @@ public class Bill {
 
     public void setInvoiceSent(Boolean invoiceSent) {
         this.invoiceSent = invoiceSent;
+    }
+
+    public Customer getCustomer() {
+        return customer;
+    }
+
+    public void setCustomer(Customer customer) {
+        this.customer = customer;
     }
 }

@@ -49,7 +49,7 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     public SalesReportDTO getSalesReport(LocalDate startDate, LocalDate endDate, String groupBy) {
-        LocalDate start = startDate != null ? startDate : LocalDate.now().minusMonths(1);
+        LocalDate start = startDate != null ? startDate : LocalDate.now().minusYears(1);
         LocalDate end = endDate != null ? endDate : LocalDate.now();
 
         log.info("Generating sales revenue report from {} to {}, groupBy={}", start, end, groupBy);
@@ -93,6 +93,11 @@ public class ReportServiceImpl implements ReportService {
                     .build());
         }
 
+        long totalBills = bills.size();
+        BigDecimal averageBillValue = totalBills > 0
+                ? netSales.divide(BigDecimal.valueOf(totalBills), 2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
         return SalesReportDTO.builder()
                 .startDate(start)
                 .endDate(end)
@@ -100,6 +105,8 @@ public class ReportServiceImpl implements ReportService {
                 .totalDiscounts(totalDiscounts.setScale(2, RoundingMode.HALF_UP))
                 .totalTax(totalTax.setScale(2, RoundingMode.HALF_UP))
                 .netSales(netSales.setScale(2, RoundingMode.HALF_UP))
+                .totalBills(totalBills)
+                .averageBillValue(averageBillValue)
                 .breakdown(breakdown)
                 .build();
     }
@@ -114,6 +121,7 @@ public class ReportServiceImpl implements ReportService {
         BigDecimal totalCostValue = BigDecimal.ZERO;
         BigDecimal totalRetailValue = BigDecimal.ZERO;
         long lowStockCount = 0;
+        List<InventoryValuationReportDTO.InventoryItemValuationDTO> items = new ArrayList<>();
 
         for (Inventory inv : inventoryList) {
             int qty = inv.getQuantityOnHand() != null ? inv.getQuantityOnHand() : 0;
@@ -128,8 +136,23 @@ public class ReportServiceImpl implements ReportService {
                 BigDecimal purchasePrice = product.getPurchasePrice() != null ? product.getPurchasePrice() : BigDecimal.ZERO;
                 BigDecimal unitPrice = product.getUnitPrice() != null ? product.getUnitPrice() : BigDecimal.ZERO;
 
-                totalCostValue = totalCostValue.add(purchasePrice.multiply(BigDecimal.valueOf(qty)));
-                totalRetailValue = totalRetailValue.add(unitPrice.multiply(BigDecimal.valueOf(qty)));
+                BigDecimal itemCostVal = purchasePrice.multiply(BigDecimal.valueOf(qty)).setScale(2, RoundingMode.HALF_UP);
+                BigDecimal itemRetailVal = unitPrice.multiply(BigDecimal.valueOf(qty)).setScale(2, RoundingMode.HALF_UP);
+
+                totalCostValue = totalCostValue.add(itemCostVal);
+                totalRetailValue = totalRetailValue.add(itemRetailVal);
+
+                items.add(InventoryValuationReportDTO.InventoryItemValuationDTO.builder()
+                        .productId(product.getId())
+                        .productName(product.getName())
+                        .sku(product.getSku())
+                        .categoryName(product.getCategory() != null ? product.getCategory().getName() : "General")
+                        .quantityOnHand(qty)
+                        .purchasePrice(purchasePrice)
+                        .unitPrice(unitPrice)
+                        .totalCostValue(itemCostVal)
+                        .totalRetailValue(itemRetailVal)
+                        .build());
             }
         }
 
@@ -141,12 +164,13 @@ public class ReportServiceImpl implements ReportService {
                 .totalRetailValue(totalRetailValue.setScale(2, RoundingMode.HALF_UP))
                 .potentialProfit(potentialProfit.setScale(2, RoundingMode.HALF_UP))
                 .lowStockCount(lowStockCount)
+                .items(items)
                 .build();
     }
 
     @Override
     public PurchaseReportDTO getPurchaseReport(LocalDate startDate, LocalDate endDate, Long supplierId) {
-        LocalDate start = startDate != null ? startDate : LocalDate.now().minusMonths(1);
+        LocalDate start = startDate != null ? startDate : LocalDate.now().minusYears(1);
         LocalDate end = endDate != null ? endDate : LocalDate.now();
 
         log.info("Generating procurement expense report from {} to {}, supplierId={}", start, end, supplierId);
@@ -174,8 +198,13 @@ public class ReportServiceImpl implements ReportService {
                     .map(Purchase::getTotalAmount)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+            String supplierName = (dayPurchases.size() > 0 && dayPurchases.get(0).getSupplier() != null)
+                    ? dayPurchases.get(0).getSupplier().getName()
+                    : "Vendor Supplier";
+
             breakdown.add(PurchaseReportDTO.PurchaseBreakdownDTO.builder()
                     .period(entry.getKey())
+                    .supplierName(supplierName)
                     .orderCount((long) dayPurchases.size())
                     .totalAmount(dayTotal)
                     .build());

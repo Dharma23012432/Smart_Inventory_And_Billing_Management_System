@@ -118,11 +118,16 @@ class PaymentServiceTest {
         ArgumentCaptor<PaymentCompletedEvent> eventCaptor = ArgumentCaptor.forClass(PaymentCompletedEvent.class);
         verify(eventPublisher).publishPaymentCompleted(eventCaptor.capture());
         PaymentCompletedEvent publishedEvent = eventCaptor.getValue();
-        assertEquals("PaymentCompleted", publishedEvent.getEventType());
-        assertEquals(1L, publishedEvent.getPayload().getPaymentId());
-        assertEquals(100L, publishedEvent.getPayload().getBillId());
-        assertEquals("Jane Smith", publishedEvent.getPayload().getCustomerName());
-        assertEquals("jane@example.com", publishedEvent.getPayload().getCustomerEmail());
+        assertEquals(1L, publishedEvent.getPaymentId());
+        assertEquals(100L, publishedEvent.getBillId());
+        assertEquals("BILL-20261019-0001", publishedEvent.getBillNumber());
+        assertEquals(10L, publishedEvent.getCustomerId());
+        assertEquals("Jane Smith", publishedEvent.getCustomerName());
+        assertEquals("jane@example.com", publishedEvent.getCustomerEmail());
+        assertEquals(new BigDecimal("250.00"), publishedEvent.getAmountPaid());
+        assertEquals("UPI", publishedEvent.getPaymentMethod());
+        assertNotNull(publishedEvent.getPaymentDate());
+        assertNotNull(publishedEvent.getEventTimestamp());
     }
 
     @Test

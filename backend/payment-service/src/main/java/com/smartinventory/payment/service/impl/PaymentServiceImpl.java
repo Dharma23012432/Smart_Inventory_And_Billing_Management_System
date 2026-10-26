@@ -9,7 +9,6 @@ import com.smartinventory.payment.entity.enums.BillStatus;
 import com.smartinventory.payment.entity.enums.PaymentStatus;
 import com.smartinventory.payment.event.EventPublisher;
 import com.smartinventory.payment.event.PaymentCompletedEvent;
-import com.smartinventory.payment.event.PaymentCompletedPayload;
 import com.smartinventory.payment.exception.DuplicateResourceException;
 import com.smartinventory.payment.exception.ResourceNotFoundException;
 import com.smartinventory.payment.repository.BillRepository;
@@ -21,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 /**
@@ -131,21 +131,19 @@ public class PaymentServiceImpl implements PaymentService {
      */
     private void publishPaymentCompletedEvent(Payment payment, Bill bill) {
         Customer customer = bill.getCustomer();
-        PaymentCompletedPayload payload = new PaymentCompletedPayload(
-                payment.getId(),
-                bill.getId(),
-                bill.getBillNumber(),
-                payment.getAmountPaid(),
-                payment.getPaymentMethod().name(),
-                payment.getReferenceNumber(),
-                customer != null ? customer.getId() : null,
-                customer != null ? customer.getName() : null,
-                customer != null ? customer.getEmail() : null,
-                customer != null ? customer.getPhone() : null,
-                payment.getPaymentDate()
-        );
+        PaymentCompletedEvent event = PaymentCompletedEvent.builder()
+                .paymentId(payment.getId())
+                .billId(bill.getId())
+                .billNumber(bill.getBillNumber())
+                .customerId(customer != null ? customer.getId() : null)
+                .customerName(customer != null ? customer.getName() : null)
+                .customerEmail(customer != null ? customer.getEmail() : null)
+                .amountPaid(payment.getAmountPaid())
+                .paymentMethod(payment.getPaymentMethod() != null ? payment.getPaymentMethod().name() : null)
+                .paymentDate(payment.getPaymentDate())
+                .eventTimestamp(Instant.now())
+                .build();
 
-        PaymentCompletedEvent event = new PaymentCompletedEvent(payload);
         eventPublisher.publishPaymentCompleted(event);
     }
 }

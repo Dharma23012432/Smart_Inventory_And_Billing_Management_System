@@ -1,68 +1,40 @@
 package com.smartinventory.payment.event;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.io.Serializable;
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
- * Event wrapper for PaymentCompleted event broadcast over RabbitMQ.
- * Matches API_SPECIFICATION.md Section 7.1.
+ * Event published when a payment is successfully completed.
+ * Published to RabbitMQ topic exchange (inventory.exchange) with routing key (payment.completed).
  */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class PaymentCompletedEvent implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private String eventId;
-    private String eventType;
-    private LocalDateTime timestamp;
-    private PaymentCompletedPayload payload;
+    private Long paymentId;
+    private Long billId;
+    private String billNumber;
+    private Long customerId;
+    private String customerName;
+    private String customerEmail;
+    private BigDecimal amountPaid;
+    private String paymentMethod;
 
-    public PaymentCompletedEvent() {
-    }
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    private LocalDateTime paymentDate;
 
-    public PaymentCompletedEvent(PaymentCompletedPayload payload) {
-        this.eventId = UUID.randomUUID().toString();
-        this.eventType = "PaymentCompleted";
-        this.timestamp = LocalDateTime.now();
-        this.payload = payload;
-    }
-
-    public PaymentCompletedEvent(String eventId, String eventType, LocalDateTime timestamp, PaymentCompletedPayload payload) {
-        this.eventId = eventId;
-        this.eventType = eventType;
-        this.timestamp = timestamp;
-        this.payload = payload;
-    }
-
-    public String getEventId() {
-        return eventId;
-    }
-
-    public void setEventId(String eventId) {
-        this.eventId = eventId;
-    }
-
-    public String getEventType() {
-        return eventType;
-    }
-
-    public void setEventType(String eventType) {
-        this.eventType = eventType;
-    }
-
-    public LocalDateTime getTimestamp() {
-        return timestamp;
-    }
-
-    public void setTimestamp(LocalDateTime timestamp) {
-        this.timestamp = timestamp;
-    }
-
-    public PaymentCompletedPayload getPayload() {
-        return payload;
-    }
-
-    public void setPayload(PaymentCompletedPayload payload) {
-        this.payload = payload;
-    }
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
+    private Instant eventTimestamp;
 }

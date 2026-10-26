@@ -26,4 +26,26 @@ public class InventoryValuationReportDTO {
     private BigDecimal potentialProfit;
 
     private Long lowStockCount;
+
+    private java.util.List<InventoryItemValuationDTO> items;
+
+    public Long getTotalStockUnits() {
+        return totalStockQuantity;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class InventoryItemValuationDTO {
+        private Long productId;
+        private String productName;
+        private String sku;
+        private String categoryName;
+        private Integer quantityOnHand;
+        private BigDecimal purchasePrice;
+        private BigDecimal unitPrice;
+        private BigDecimal totalCostValue;
+        private BigDecimal totalRetailValue;
+    }
 }
