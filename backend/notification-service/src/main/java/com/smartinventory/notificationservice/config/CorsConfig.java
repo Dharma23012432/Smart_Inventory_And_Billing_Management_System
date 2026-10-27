@@ -50,7 +50,11 @@ public class CorsConfig {
         log.info("Configuring CORS for Notification Service with allowed origins: {}", origins);
 
         for (String origin : origins) {
-            config.addAllowedOrigin(origin);
+            if ("*".equals(origin) || origin.contains("*")) {
+                config.addAllowedOriginPattern(origin);
+            } else {
+                config.addAllowedOrigin(origin);
+            }
         }
 
         List<String> methods = Arrays.stream(allowedMethods.split(","))

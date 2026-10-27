@@ -13,6 +13,9 @@ import axios from 'axios'
  */
 
 const BASE_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || ''
+const INVENTORY_URL = import.meta.env.VITE_INVENTORY_SERVICE_URL || BASE_URL
+const PAYMENT_URL = import.meta.env.VITE_PAYMENT_SERVICE_URL || BASE_URL
+const NOTIFICATION_URL = import.meta.env.VITE_NOTIFICATION_SERVICE_URL || BASE_URL
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -21,6 +24,19 @@ export const apiClient = axios.create({
     Accept: 'application/json',
   },
   timeout: 15000,
+})
+
+// Dynamically route requests if separate microservice URLs are defined
+apiClient.interceptors.request.use((config) => {
+  const url = config.url || ''
+  if (url.startsWith('/api/v1/payments') && PAYMENT_URL) {
+    config.baseURL = PAYMENT_URL
+  } else if (url.startsWith('/api/v1/notifications') && NOTIFICATION_URL) {
+    config.baseURL = NOTIFICATION_URL
+  } else if (INVENTORY_URL) {
+    config.baseURL = INVENTORY_URL
+  }
+  return config
 })
 
 // Response interceptor to handle ApiResponse envelopes and normalize errors
